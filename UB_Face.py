@@ -37,7 +37,11 @@ def detect_faces(img: np.ndarray) -> List[List[float]]:
     detection_results: List[List[float]] = [] # Please make sure your output follows this data format.
 
     # Add your code here. Do not modify the return and input arguments.
-    
+    gray_image = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
+    face_locations = face_recognition.face_locations(gray_image)
+    for face_location in face_locations:
+        top, right, bottom, left = face_location
+        detection_results.append([float(left), float(top), float(right - left), float(bottom - top)])
     return detection_results
 
 
