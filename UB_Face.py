@@ -62,6 +62,13 @@ def cluster_faces(imgs: Dict[str, np.ndarray], K: int) -> List[List[str]]:
     cluster_results: List[List[str]] = [[]] * K # Please make sure your output follows this data format.
 
     # Add your code here. Do not modify the return and input arguments.
+    face_encodings = []
+    for key in imgs.keys():
+        img = imgs[key]
+        face_encoding = get_face_encoding(img)
+        face_encodings.append(face_encoding)
+    face_encodings = np.array(face_encodings)
+
     
     return cluster_results
 
@@ -72,3 +79,10 @@ But remember the above 2 functions are the only functions that will be called by
 '''
 
 # Your functions. (if needed)
+def get_face_encoding(img: np.ndarray) -> np.ndarray | None:
+    face_locations = detect_faces(img)
+    for face_location in face_locations:
+        top, left, width, height = face_location
+        face_image = img[int(top):int(top + height), int(left):int(left + width)]
+        face_encoding = face_recognition.face_encodings(face_image)[0]
+        return face_encoding
