@@ -62,14 +62,35 @@ def cluster_faces(imgs: Dict[str, np.ndarray], K: int) -> List[List[str]]:
     cluster_results: List[List[str]] = [[]] * K # Please make sure your output follows this data format.
 
     # Add your code here. Do not modify the return and input arguments.
-    face_encodings = []
-    for key in imgs.keys():
-        img = imgs[key]
-        face_encoding = get_face_encoding(img)
-        face_encodings.append(face_encoding)
-    face_encodings = np.array(face_encodings)
-
+    count = 0
+    face_encoding_results = {}
+    face_encodings = np.array([]).reshape(0, 128)
+    for img_name in imgs.keys():
+        face_encoding = np.array(face_recognition.face_encodings(imgs[img_name]))
+        if face_encoding.shape[0] == 0:
+            count += 1
+            continue
+        face_encodings = np.concatenate((face_encodings, face_encoding), axis=0)
+        if face_encoding.shape[0] > 1:
+            for i in range(face_encoding.shape[0]):
+                face_encoding_results[img_name + '_' + str(i)] = np.reshape(face_encoding[i], (1, 128))
+        else:
+            face_encoding_results[img_name] = np.reshape(face_encoding, (1, 128))
     
+    centroids = []
+    centroids_names = np.random.choice(np.array(list(face_encoding_results.keys())), K, replace=False)
+    for n in centroids_names:
+        centroids.append(face_encoding_results[n])
+
+    centroids = np.array(centroids)
+    centroids = np.reshape(centroids, (centroids.shape[0], 128))
+    cluster_results = get_cluster_results(face_encoding_results, centroids, K)
+    while True:
+        new_centroids = get_centroids(face_encoding_results, cluster_results)
+        new_cluster_results = get_cluster_results(face_encoding_results, new_centroids, K)
+        if np.array_equal(cluster_results, new_cluster_results):
+            break
+        cluster_results = new_cluster_results
     return cluster_results
 
 
@@ -79,10 +100,28 @@ But remember the above 2 functions are the only functions that will be called by
 '''
 
 # Your functions. (if needed)
-def get_face_encoding(img: np.ndarray) -> np.ndarray | None:
-    face_locations = detect_faces(img)
-    for face_location in face_locations:
-        top, left, width, height = face_location
-        face_image = img[int(top):int(top + height), int(left):int(left + width)]
-        face_encoding = face_recognition.face_encodings(face_image)[0]
-        return face_encoding
+def get_distance(face_encoding: np.ndarray, centroids: np.ndarray):
+    distances = []
+    for centroid in centroids:
+        distance = np.linalg.norm(face_encoding - centroid)
+        distances.append(distance)
+    return distances
+
+def get_centroids(face_encodings: dict, cluster_results):
+    centroids = []
+    for cluster in cluster_results:
+        cluster_images = [face_encodings[i] for i in cluster]
+        cluster_images = np.array(cluster_images)
+        cluster_images = np.reshape(cluster_images, (cluster_images.shape[0], 128))  
+        centroids.append(np.reshape(np.mean(cluster_images, axis=0), (1, 128)))
+    centroids = np.array(centroids)
+    centroids = np.reshape(centroids, (centroids.shape[0], 128))
+    return np.array(centroids)
+
+def get_cluster_results(face_encodings: dict, centroids: np.ndarray, K: int):
+    cluster_results = [[] for i in range(K)]
+    for i in face_encodings.keys():
+        face_encoding = face_encodings[i]
+        distances = get_distance(face_encoding, centroids)
+        cluster_results[np.argmin(distances)].append(i)
+    return cluster_results
